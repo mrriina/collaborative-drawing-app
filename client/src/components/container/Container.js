@@ -1,7 +1,28 @@
 import React from "react";
 import './styles.css'
+import io from "socket.io-client";
 
 class Container extends React.Component{
+
+    socket = io("http://localhost:5000");
+
+    constructor(props) {
+        super(props);
+
+        this.socket.on("update-canvas", function(data){
+            
+            var interval = setInterval(function(){
+                clearInterval(interval);
+                var image = new Image();
+                var canvas = document.querySelector('canvas');
+                var ctx = canvas.getContext("2d");
+                image.onload = function() {
+                    ctx.drawImage(image, 0, 0);
+                };
+                image.src = data;
+            }, 200)
+        })
+    }
 
     componentDidMount() {
         this.drawCanvas();
@@ -15,6 +36,18 @@ class Container extends React.Component{
         const saveImg = document.querySelector(".save-img");
         const ctx = canvas.getContext("2d");
 
+
+        const emitforSocket = () => {
+            var root = this;
+
+            if(root.timeout !== undefined) clearTimeout(root.timeout);
+                root.timeout = setTimeout(function(){
+                    var base64ImageData = canvas.toDataURL("image/png");
+                    root.socket.emit("update-canvas", base64ImageData);
+                }, 1000)
+        }
+
+
         let isDrawing = false,
             selectedTool = "brush",
             selectedColor = "#000000",
@@ -27,13 +60,17 @@ class Container extends React.Component{
             canvas.height = canvas.offsetHeight;
         });
 
-        const drawRect = (e) => {return ctx.fillRect(e.offsetX, e.offsetY, prevMouseX - e.offsetX, prevMouseY - e.offsetY);}
+        const drawRect = (e) => {
+            ctx.fillRect(e.offsetX, e.offsetY, prevMouseX - e.offsetX, prevMouseY - e.offsetY); 
+            emitforSocket();
+        }
 
         const drawCircle = (e) => {
             ctx.beginPath();
             let radius = Math.sqrt(Math.pow((prevMouseX - e.offsetX), 2) + Math.pow((prevMouseY - e.offsetY), 2));
             ctx.arc(prevMouseX, prevMouseY, radius, 0, 2 * Math.PI);
             ctx.fill();
+            emitforSocket();
         }
 
         const drawTriangle = (e) => {
@@ -43,6 +80,7 @@ class Container extends React.Component{
             ctx.lineTo(prevMouseX * 2 - e.offsetX, e.offsetY);
             ctx.closePath();
             ctx.fill();
+            emitforSocket();
         }
 
         const startDraw = (e) => {
@@ -62,6 +100,7 @@ class Container extends React.Component{
                 ctx.strokeStyle = selectedTool === "eraser" ? "#fff" : selectedColor;
                 ctx.lineTo(e.offsetX, e.offsetY);
                 ctx.stroke();
+                emitforSocket();
             } 
             else if (selectedTool === "rectangle") {
                 drawRect(e);

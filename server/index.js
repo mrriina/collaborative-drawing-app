@@ -7,9 +7,9 @@ const io = require("socket.io")(port, {
 });
 
 io.on("connection", (socket) => {
-    console.log("User online");
-  
-    socket.on("canvas-data", (data) => {
-      socket.broadcast.emit("canvas-data", data);
+    console.log("User Connected");
+
+    socket.on("update-canvas", (data) => {
+        socket.broadcast.emit("update-canvas", data);
     });
-  });
+});
